@@ -17,7 +17,7 @@ defmodule ExampleLiveviewAiUxWeb.Router do
   scope "/", ExampleLiveviewAiUxWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", CustomerLive.Index, :index
   end
 
   # Other scopes may use custom stacks.

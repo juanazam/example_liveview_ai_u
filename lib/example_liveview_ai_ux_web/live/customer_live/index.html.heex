@@ -1,0 +1,267 @@
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-6xl">
+    <div class="bg-white">
+      <div class="mx-auto max-w-4xl py-8">
+        <h1 class="text-3xl font-bold text-gray-900">Customer Filter Demo</h1>
+        <p class="mt-2 text-lg text-gray-600">
+          Use natural language to describe the customers you want to find, or use the traditional filters below.
+        </p>
+
+        <div class="mt-8 space-y-8">
+          <div class="bg-gray-50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Describe the customers you want to find</h2>
+            
+            <.form for={%{}} phx-submit="apply_intent" class="space-y-4">
+              <div>
+                <label for="intent" class="block text-sm font-medium text-gray-700">Natural Language Filter</label>
+                <div class="mt-1 relative">
+                  <textarea
+                    id="intent"
+                    name="intent"
+                    value={@intent_input}
+                    placeholder="e.g., customers who spent more than $500 in the last 3 months and are inactive"
+                    rows="2"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  ></textarea>
+                  <%= if @loading do %>
+                    <div class="absolute right-3 top-3">
+                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+              
+              <div class="flex space-x-3">
+                <button
+                  type="submit"
+                  disabled={@loading}
+                  class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md font-medium"
+                >
+                  Apply Filter
+                </button>
+                <button
+                  type="button"
+                  phx-click="clear_filters"
+                  class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md font-medium"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+
+              <%= if @intent_error do %>
+                <div class="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p class="text-sm text-red-700"><%= @intent_error %></p>
+                </div>
+              <% end %>
+            </.form>
+
+            <div class="mt-4 text-sm text-gray-600">
+              <p class="font-medium">Example prompts:</p>
+              <ul class="mt-1 space-y-1 list-disc list-inside">
+                <li>customers who spent more than $500 and are inactive</li>
+                <li>enterprise customers with open tickets</li>
+                <li>people who signed up recently but have not ordered yet</li>
+                <li>customers from Uruguay who have not purchased in 6 months</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Traditional Filters</h2>
+            
+            <.form for={@changeset} phx-change="update_filter" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Min Total Spend ($)</label>
+                <input
+                  type="number"
+                  name="customer_filter[min_total_spend]"
+                  value={@filter.min_total_spend && div(@filter.min_total_spend, 100)}
+                  placeholder="0"
+                  min="0"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Max Total Spend ($)</label>
+                <input
+                  type="number"
+                  name="customer_filter[max_total_spend]"
+                  value={@filter.max_total_spend && div(@filter.max_total_spend, 100)}
+                  placeholder="No limit"
+                  min="0"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  name="customer_filter[status]"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active" selected={@filter.status == :active}>Active</option>
+                  <option value="inactive" selected={@filter.status == :inactive}>Inactive</option>
+                  <option value="churn_risk" selected={@filter.status == :churn_risk}>Churn Risk</option>
+                  <option value="vip" selected={@filter.status == :vip}>VIP</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Country</label>
+                <input
+                  type="text"
+                  name="customer_filter[country]"
+                  value={@filter.country}
+                  placeholder="e.g., USA, Canada, Uruguay"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Segment</label>
+                <select
+                  name="customer_filter[segment]"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Segments</option>
+                  <option value="consumer" selected={@filter.segment == :consumer}>Consumer</option>
+                  <option value="smb" selected={@filter.segment == :smb}>SMB</option>
+                  <option value="enterprise" selected={@filter.segment == :enterprise}>Enterprise</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Has Support Ticket</label>
+                <select
+                  name="customer_filter[has_open_support_ticket]"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Any</option>
+                  <option value="true" selected={@filter.has_open_support_ticket == true}>Yes</option>
+                  <option value="false" selected={@filter.has_open_support_ticket == false}>No</option>
+                </select>
+              </div>
+            </.form>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Results</h2>
+              <span class="text-gray-600"><%= @count %> customers found</span>
+            </div>
+
+            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              <table class="min-w-full divide-y divide-gray-300">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spend</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Order</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segment</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <%= for customer <- @customers do %>
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900"><%= customer.name %></div>
+                        <div class="text-sm text-gray-500"><%= customer.email %></div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class={[
+                          "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
+                          case customer.status do
+                            :active -> "bg-green-100 text-green-800"
+                            :inactive -> "bg-gray-100 text-gray-800"
+                            :churn_risk -> "bg-yellow-100 text-yellow-800"
+                            :vip -> "bg-purple-100 text-purple-800"
+                          end
+                        ]}>
+                          <%= Phoenix.Naming.humanize(customer.status) %>
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        $<%= :erlang.float_to_binary(customer.total_spend / 100, [{:decimals, 2}]) %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= customer.orders_count %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= if customer.last_order_at do %>
+                          <%= Calendar.strftime(customer.last_order_at, "%b %d, %Y") %>
+                        <% else %>
+                          <span class="text-gray-500">Never</span>
+                        <% end %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= customer.country %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= Phoenix.Naming.humanize(customer.segment) %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <%= if customer.has_open_support_ticket do %>
+                          <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            Open
+                          </span>
+                        <% else %>
+                          <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            None
+                          </span>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <%= if @debug_info != %{} do %>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h3 class="text-lg font-medium text-blue-900 mb-3">Debug Information</h3>
+              <dl class="space-y-2">
+                <dt class="text-sm font-medium text-blue-700">Last Input:</dt>
+                <dd class="text-sm text-blue-900 font-mono bg-white p-2 rounded border">
+                  "<%= Map.get(@debug_info, :input, "") %>"
+                </dd>
+                
+                <dt class="text-sm font-medium text-blue-700">Parse Status:</dt>
+                <dd class={[
+                  "text-sm font-medium",
+                  case Map.get(@debug_info, :status) do
+                    "success" -> "text-green-700"
+                    "error" -> "text-red-700"
+                    _ -> "text-blue-700"
+                  end
+                ]}>
+                  <%= Map.get(@debug_info, :status, "unknown") %>
+                </dd>
+                
+                <%= if Map.get(@debug_info, :parsed_filter) do %>
+                  <dt class="text-sm font-medium text-blue-700">Parsed Filter:</dt>
+                  <dd class="text-sm text-blue-900 font-mono bg-white p-2 rounded border">
+                    <%= inspect(Map.get(@debug_info, :parsed_filter), pretty: true) %>
+                  </dd>
+                <% end %>
+                
+                <%= if Map.get(@debug_info, :error) do %>
+                  <dt class="text-sm font-medium text-blue-700">Error:</dt>
+                  <dd class="text-sm text-red-700 font-mono bg-white p-2 rounded border">
+                    <%= Map.get(@debug_info, :error) %>
+                  </dd>
+                <% end %>
+              </dl>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
