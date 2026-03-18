@@ -50,29 +50,136 @@ users inspect and edit generated filters rather than applying them blindly.
 
 ```
 lib/
+├── ecto_filters/
+│   ├── ecto_filters.ex      # use EctoFilters macro + compile-time code generation
+│   ├── dsl.ex               # filter :name do ... end macro
+│   └── types.ex             # per-type schema fields, validations, query helpers, metadata
+│
 └── example_liveview_ai_ux/
     └── customers/
-        ├── customer.ex          # Ecto schema — the data model
-        ├── customer_filter.ex   # Embedded schema defining available filter fields
-        ├── customer_filters.ex  # Deterministic query composition (no AI here)
-        └── intent_filters.ex    # AI parsing layer — translates text → CustomerFilter
+        ├── customer.ex                # Ecto schema — the data model
+        └── simple_dsl_filters.ex      # filter module defined with the EctoFilters DSL
 ```
-
-**`CustomerFilter`** is a plain embedded Ecto schema. All filter state lives
-here, whether it came from the manual form or from the LLM.
-
-**`CustomerFilters`** contains pure query functions. It knows nothing about AI
-or user intent — it just takes a `CustomerFilter` and builds a composable Ecto
-query. This is the deterministic core.
-
-**`IntentFilters`** is the AI layer. It sends the user's natural language
-request to the LLM via InstructorEx, receives a validated struct, and maps it
-onto a `CustomerFilter`. If the LLM call fails or returns an invalid response,
-it returns an error tuple — the rest of the system is unaffected.
 
 **`CustomerLive.Index`** is the LiveView. It handles both the manual form
 (`phx-change="update_filter"`) and the natural language form
 (`phx-submit="apply_intent"`), routing both paths through the same query logic.
+
+## The EctoFilters DSL
+
+This branch explores a next step: a small DSL that lets you declare a filter
+module once and get the following generated for free at compile time:
+
+- An embedded Ecto schema (`Filter`) for holding filter state
+- A `changeset/2` function for casting and validating form params
+- A composable `apply/2` function for building Ecto queries
+- An `AISchema` submodule (backed by InstructorEx) for LLM parsing
+- A `parse_intent/1` function that turns natural language into a `Filter`
+- A `ui_metadata/0` map with hints for rendering traditional filter inputs
+
+The same filter definition drives the query layer, the traditional UI, and the
+AI intent layer. Define it once; all three stay in sync automatically.
+
+### Defining a filter module
+
+```elixir
+defmodule MyApp.CustomerFilters do
+  use EctoFilters, schema: MyApp.Customer
+
+  filter :total_spend do
+    type :integer_range          # generates total_spend_min / total_spend_max
+    field :total_spend           # column on the Ecto schema
+    ui label: "Total Spend", format: :currency
+    ai_hint "Convert dollar amounts to cents (multiply by 100)"
+  end
+
+  filter :status do
+    type :enum
+    field :status
+    values [:active, :inactive, :churn_risk, :vip]
+    ui label: "Status", type: :select
+    ai_hint "One of: active, inactive, churn_risk, vip"
+  end
+
+  filter :country do
+    type :string_match
+    field :country
+    ui label: "Country", placeholder: "e.g. USA, Canada"
+    ai_hint "Country name as a string"
+  end
+
+  filter :last_order do
+    type :days_range             # generates last_order_before_days / last_order_after_days
+    field :last_order_at
+    ui label: "Last Order"
+    ai_hint "Use before_days for 'no order in X days', after_days for 'ordered within X days'"
+  end
+
+  filter :has_open_support_ticket do
+    type :boolean
+    field :has_open_support_ticket
+    ui label: "Open Support Ticket"
+    ai_hint "true if the customer has an open support ticket"
+  end
+end
+```
+
+### Supported filter types
+
+| Type | Generated fields | Use for |
+|---|---|---|
+| `:integer_range` | `name_min`, `name_max` | Numeric ranges (spend, order count) |
+| `:enum` | `name` | Fixed set of atom values |
+| `:string_match` | `name` | Exact string equality |
+| `:boolean` | `name` | True/false flags |
+| `:days_ago` | `name_before_days` | "event happened more than N days ago" |
+| `:days_range` | `name_before_days`, `name_after_days` | Both before and after bounds on a timestamp |
+
+### Using the generated module
+
+```elixir
+# Build an empty filter (all fields nil = no filtering)
+filter = MyApp.CustomerFilters.new()
+
+# Cast params from a form (phx-change)
+changeset = MyApp.CustomerFilters.changeset(filter, %{
+  "status" => "active",
+  "total_spend_min" => "50000"
+})
+
+# Apply to an Ecto query
+customers =
+  MyApp.Customer
+  |> MyApp.CustomerFilters.apply(filter)
+  |> Repo.all()
+
+# Parse natural language into a filter
+{:ok, filter} = MyApp.CustomerFilters.parse_intent("inactive customers who spent over $500")
+
+# UI rendering hints
+MyApp.CustomerFilters.ui_metadata()
+# => %{status: %{type: :enum, label: "Status", options: [...], ...}, ...}
+```
+
+### Compile-time validation
+
+The DSL validates filter declarations against the target Ecto schema at compile
+time, so mistakes are caught immediately rather than at runtime:
+
+```
+** (ArgumentError) EctoFilters: filter :last_order targets field :last_order_date,
+   but MyApp.Customer has no such field.
+   Did you mean :last_order_at?
+   Available fields: [:id, :name, :status, :last_order_at, ...]
+```
+
+Type mismatches are also caught:
+
+```
+** (ArgumentError) EctoFilters: filter :country has type :days_range,
+   which expects [:utc_datetime, :naive_datetime, ...],
+   but field :country on the schema is :string.
+```
 
 ## Setup
 
