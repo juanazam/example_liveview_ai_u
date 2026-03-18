@@ -46,11 +46,13 @@ defmodule EctoFilters do
     end
   end
 
-  # After all `filter` declarations have been evaluated, generate all the
-  # boilerplate by injecting quoted code into the calling module.
+  # After all `filter` declarations have been evaluated, validate the filter
+  # declarations against the schema, then generate all the boilerplate.
   defmacro __before_compile__(env) do
     filters = Module.get_attribute(env.module, :filters)
     schema_module = Module.get_attribute(env.module, :schema_module)
+
+    validate_filters!(filters, schema_module)
 
     quote do
       unquote(generate_filter_struct(filters))
@@ -59,6 +61,88 @@ defmodule EctoFilters do
       unquote(generate_ui_metadata(filters))
       unquote(generate_ai_schema(filters))
       unquote(generate_public_api())
+    end
+  end
+
+  # ── Compile-time validation ───────────────────────────────────────────────
+
+  # Checks every filter's `field` value against the actual Ecto schema at
+  # compile time, raising a clear error before any code is generated.
+  #
+  # Two things are verified for each filter:
+  #   1. The target field exists on the schema.
+  #   2. The filter type is compatible with the field's Ecto type.
+  defp validate_filters!(filters, schema_module) do
+    valid_fields = schema_module.__schema__(:fields)
+
+    Enum.each(filters, fn filter ->
+      field = filter[:field] || filter[:name]
+      validate_field_exists!(filter[:name], field, schema_module, valid_fields)
+      validate_type_compat!(filter[:name], filter[:type], field, schema_module)
+    end)
+  end
+
+  defp validate_field_exists!(filter_name, field, schema_module, valid_fields) do
+    unless field in valid_fields do
+      suggestion = did_you_mean(field, valid_fields)
+
+      raise ArgumentError, """
+      EctoFilters: filter #{inspect(filter_name)} targets field #{inspect(field)}, \
+      but #{inspect(schema_module)} has no such field.
+      #{suggestion}\
+      Available fields: #{inspect(valid_fields)}
+      """
+    end
+  end
+
+  # Maps each filter type to the Ecto column types it makes sense for.
+  # A mismatch is likely a copy-paste mistake and should fail loudly.
+  @type_compat %{
+    integer_range: [:integer],
+    enum:          [:string, {:parameterized, Ecto.Enum}],
+    string_match:  [:string],
+    boolean:       [:boolean],
+    days_ago:      [:utc_datetime, :naive_datetime, :date,
+                    :utc_datetime_usec, :naive_datetime_usec],
+    days_range:    [:utc_datetime, :naive_datetime, :date,
+                    :utc_datetime_usec, :naive_datetime_usec]
+  }
+
+  defp validate_type_compat!(filter_name, filter_type, field, schema_module) do
+    allowed = Map.get(@type_compat, filter_type, :any)
+
+    if allowed != :any do
+      ecto_type = schema_module.__schema__(:type, field)
+      # Normalise parameterized types to just the base module for comparison.
+      # Ecto 3 uses {:parameterized, {Mod, opts}} (2-tuple inside).
+      base_type = case ecto_type do
+        {:parameterized, {mod, _}} -> {:parameterized, mod}
+        {:parameterized, mod, _}   -> {:parameterized, mod}
+        other -> other
+      end
+
+      unless base_type in allowed do
+        raise ArgumentError, """
+        EctoFilters: filter #{inspect(filter_name)} has type #{inspect(filter_type)}, \
+        which expects #{inspect(allowed)}, \
+        but field #{inspect(field)} on the schema is #{inspect(ecto_type)}.
+        """
+      end
+    end
+  end
+
+  # Returns a hint string when a field name is close to a valid one.
+  defp did_you_mean(field, valid_fields) do
+    field_str = to_string(field)
+
+    best =
+      valid_fields
+      |> Enum.min_by(fn f -> String.jaro_distance(field_str, to_string(f)) end, &>=/2)
+
+    if String.jaro_distance(field_str, to_string(best)) >= 0.8 do
+      "Did you mean #{inspect(best)}?\n"
+    else
+      ""
     end
   end
 
