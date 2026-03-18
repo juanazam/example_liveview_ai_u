@@ -1,15 +1,15 @@
 defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
   use ExampleLiveviewAiUxWeb, :live_view
 
-  alias ExampleLiveviewAiUx.Customers
-  alias ExampleLiveviewAiUx.Customers.{IntentFilters}
+  alias ExampleLiveviewAiUx.{Customers, Repo}
+  alias ExampleLiveviewAiUx.Customers.SimpleDSLFilters
 
   @impl true
   def mount(_params, _session, socket) do
-    filter = Customers.new_customer_filter()
-    changeset = Customers.change_customer_filter(filter)
-    customers = Customers.list_customers(filter)
-    count = Customers.count_customers(filter)
+    filter = SimpleDSLFilters.new()
+    changeset = SimpleDSLFilters.changeset(filter, %{})
+    customers = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.all()
+    count = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.aggregate(:count, :id)
 
     socket =
       socket
@@ -30,12 +30,12 @@ defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
   def handle_event("apply_intent", %{"intent" => intent_text}, socket) do
     socket = assign(socket, :loading, true)
 
-    case IntentFilters.parse_filter_from_text(intent_text) do
+    case SimpleDSLFilters.parse_intent(intent_text) do
       {:ok, filter} ->
-        customers = Customers.list_customers(filter)
-        count = Customers.count_customers(filter)
+        customers = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.all()
+        count = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.aggregate(:count, :id)
 
-        changeset = Customers.change_customer_filter(filter)
+        changeset = SimpleDSLFilters.changeset(filter, %{})
 
         socket =
           socket
@@ -73,15 +73,16 @@ defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
   end
 
   @impl true
-  def handle_event("update_filter", %{"customer_filter" => filter_params}, socket) do
-    filter_params = dollars_to_cents(filter_params, "min_total_spend")
-    filter_params = dollars_to_cents(filter_params, "max_total_spend")
+  def handle_event("update_filter", %{"filter" => filter_params}, socket) do
+    # The spend inputs display dollars but the filter stores cents, so convert back.
+    filter_params = dollars_to_cents(filter_params, "total_spend_min")
+    filter_params = dollars_to_cents(filter_params, "total_spend_max")
 
-    case Customers.change_customer_filter(socket.assigns.filter, filter_params) do
+    case SimpleDSLFilters.changeset(socket.assigns.filter, filter_params) do
       %{valid?: true} = changeset ->
         filter = Ecto.Changeset.apply_changes(changeset)
-        customers = Customers.list_customers(filter)
-        count = Customers.count_customers(filter)
+        customers = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.all()
+        count = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.aggregate(:count, :id)
 
         socket =
           socket
@@ -99,10 +100,10 @@ defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
 
   @impl true
   def handle_event("clear_filters", _params, socket) do
-    filter = Customers.new_customer_filter()
-    changeset = Customers.change_customer_filter(filter)
-    customers = Customers.list_customers(filter)
-    count = Customers.count_customers(filter)
+    filter = SimpleDSLFilters.new()
+    changeset = SimpleDSLFilters.changeset(filter, %{})
+    customers = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.all()
+    count = SimpleDSLFilters.apply(Customers.Customer, filter) |> Repo.aggregate(:count, :id)
 
     socket =
       socket
@@ -118,6 +119,8 @@ defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
     {:noreply, socket}
   end
 
+  # Multiply a form string value by 100 (dollars → cents).
+  # Leaves the param unchanged if the value is blank or not a valid number.
   defp dollars_to_cents(params, key) do
     case Map.get(params, key) do
       value when value in [nil, ""] ->

@@ -83,8 +83,8 @@
                 <label class="block text-sm font-medium text-gray-700">Min Total Spend ($)</label>
                 <input
                   type="number"
-                  name="customer_filter[min_total_spend]"
-                  value={@filter.min_total_spend && div(@filter.min_total_spend, 100)}
+                  name="filter[total_spend_min]"
+                  value={@filter.total_spend_min && div(@filter.total_spend_min, 100)}
                   placeholder="0"
                   min="0"
                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
@@ -95,8 +95,8 @@
                 <label class="block text-sm font-medium text-gray-700">Max Total Spend ($)</label>
                 <input
                   type="number"
-                  name="customer_filter[max_total_spend]"
-                  value={@filter.max_total_spend && div(@filter.max_total_spend, 100)}
+                  name="filter[total_spend_max]"
+                  value={@filter.total_spend_max && div(@filter.total_spend_max, 100)}
                   placeholder="No limit"
                   min="0"
                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
@@ -104,9 +104,89 @@
               </div>
 
               <div>
+                <label class="block text-sm font-medium text-gray-700">Min Orders Count</label>
+                <input
+                  type="number"
+                  name="filter[orders_count_min]"
+                  value={@filter.orders_count_min}
+                  placeholder="0"
+                  min="0"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Max Orders Count</label>
+                <input
+                  type="number"
+                  name="filter[orders_count_max]"
+                  value={@filter.orders_count_max}
+                  placeholder="No limit"
+                  min="0"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">
+                  Last Order Before (days ago)
+                </label>
+                <input
+                  type="number"
+                  name="filter[last_order_before_days]"
+                  value={@filter.last_order_before_days}
+                  placeholder="e.g., 90"
+                  min="1"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">
+                  Last Order Within (days)
+                </label>
+                <input
+                  type="number"
+                  name="filter[last_order_after_days]"
+                  value={@filter.last_order_after_days}
+                  placeholder="e.g., 30"
+                  min="1"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">
+                  Signed Up Before (days ago)
+                </label>
+                <input
+                  type="number"
+                  name="filter[signed_up_before_days]"
+                  value={@filter.signed_up_before_days}
+                  placeholder="e.g., 365"
+                  min="1"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">
+                  Signed Up Within (days)
+                </label>
+                <input
+                  type="number"
+                  name="filter[signed_up_after_days]"
+                  value={@filter.signed_up_after_days}
+                  placeholder="e.g., 30"
+                  min="1"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
                 <label class="block text-sm font-medium text-gray-700">Status</label>
                 <select
-                  name="customer_filter[status]"
+                  name="filter[status]"
                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Statuses</option>
@@ -122,20 +202,9 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Country</label>
-                <input
-                  type="text"
-                  name="customer_filter[country]"
-                  value={@filter.country}
-                  placeholder="e.g., USA, Canada, Uruguay"
-                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
                 <label class="block text-sm font-medium text-gray-700">Segment</label>
                 <select
-                  name="customer_filter[segment]"
+                  name="filter[segment]"
                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Segments</option>
@@ -150,9 +219,20 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Has Support Ticket</label>
+                <label class="block text-sm font-medium text-gray-700">Country</label>
+                <input
+                  type="text"
+                  name="filter[country]"
+                  value={@filter.country}
+                  placeholder="e.g., USA, Canada, Uruguay"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Open Support Ticket</label>
                 <select
-                  name="customer_filter[has_open_support_ticket]"
+                  name="filter[has_open_support_ticket]"
                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Any</option>
