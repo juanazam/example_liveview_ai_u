@@ -1,6 +1,28 @@
 defmodule ExampleLiveviewAiUx.Customers.CustomerFilter do
   use Ecto.Schema
+  use Instructor
   import Ecto.Changeset
+
+  @llm_doc """
+  Extract customer filter parameters from natural language. Only populate fields
+  that are explicitly mentioned — leave everything else as null.
+
+  Field reference:
+  - min_total_spend: use when the request says "spent more than / at least X". Convert dollars to cents (× 100). e.g. "more than $500" → min_total_spend: 50000
+  - max_total_spend: use when the request says "spent less than / at most X". Convert dollars to cents (× 100).
+  - min_orders_count: use when the request says "ordered more than / at least N times"
+  - max_orders_count: use when the request says "ordered fewer than / at most N times"
+  - last_order_before_days: use when the request says "haven't ordered in X days/months" or "last order was a long time ago". e.g. "no order in 6 months" → last_order_before_days: 180
+  - last_order_after_days: use when the request says "ordered recently / within the last X days"
+  - signed_up_before_days: use when the request says "signed up more than X days ago / a long time ago"
+  - signed_up_after_days: use when the request says "signed up recently / within the last X days"
+  - status: only set if explicitly mentioned. One of: "active", "inactive", "churn_risk", "vip"
+  - country: only set if a country is explicitly mentioned
+  - segment: only set if explicitly mentioned. One of: "smb", "enterprise", "consumer"
+  - has_open_support_ticket: only set if explicitly mentioned. true or false
+
+  Time references: "recently" = 30 days, "a while / long time" = 90 days, "X months" = X × 30 days.
+  """
 
   @primary_key false
   embedded_schema do
@@ -60,7 +82,7 @@ defmodule ExampleLiveviewAiUx.Customers.CustomerFilter do
         description: "Minimum amount spent (in cents)"
       },
       max_total_spend: %{
-        label: "Maximum Total Spend", 
+        label: "Maximum Total Spend",
         type: :number,
         description: "Maximum amount spent (in cents)"
       },
@@ -71,7 +93,7 @@ defmodule ExampleLiveviewAiUx.Customers.CustomerFilter do
       },
       max_orders_count: %{
         label: "Maximum Orders Count",
-        type: :number, 
+        type: :number,
         description: "Maximum number of orders placed"
       },
       last_order_before_days: %{
@@ -90,7 +112,7 @@ defmodule ExampleLiveviewAiUx.Customers.CustomerFilter do
         description: "Signed up before X days ago"
       },
       signed_up_after_days: %{
-        label: "Signed Up After (Days)", 
+        label: "Signed Up After (Days)",
         type: :number,
         description: "Signed up after X days ago"
       },
@@ -126,6 +148,7 @@ defmodule ExampleLiveviewAiUx.Customers.CustomerFilter do
     case {min_spend, max_spend} do
       {min, max} when is_integer(min) and is_integer(max) and min > max ->
         add_error(changeset, :max_total_spend, "must be greater than minimum spend")
+
       _ ->
         changeset
     end
@@ -138,6 +161,7 @@ defmodule ExampleLiveviewAiUx.Customers.CustomerFilter do
     case {min_orders, max_orders} do
       {min, max} when is_integer(min) and is_integer(max) and min > max ->
         add_error(changeset, :max_orders_count, "must be greater than minimum orders")
+
       _ ->
         changeset
     end

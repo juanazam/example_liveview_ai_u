@@ -74,6 +74,9 @@ defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
 
   @impl true
   def handle_event("update_filter", %{"customer_filter" => filter_params}, socket) do
+    filter_params = dollars_to_cents(filter_params, "min_total_spend")
+    filter_params = dollars_to_cents(filter_params, "max_total_spend")
+
     case Customers.change_customer_filter(socket.assigns.filter, filter_params) do
       %{valid?: true} = changeset ->
         filter = Ecto.Changeset.apply_changes(changeset)
@@ -113,5 +116,18 @@ defmodule ExampleLiveviewAiUxWeb.CustomerLive.Index do
       |> assign(:debug_info, %{})
 
     {:noreply, socket}
+  end
+
+  defp dollars_to_cents(params, key) do
+    case Map.get(params, key) do
+      value when value in [nil, ""] ->
+        params
+
+      value ->
+        case Integer.parse(value) do
+          {dollars, _} -> Map.put(params, key, to_string(dollars * 100))
+          :error -> params
+        end
+    end
   end
 end

@@ -10,7 +10,8 @@ defmodule ExampleLiveviewAiUx.Application do
     children = [
       ExampleLiveviewAiUxWeb.Telemetry,
       ExampleLiveviewAiUx.Repo,
-      {DNSCluster, query: Application.get_env(:example_liveview_ai_ux, :dns_cluster_query) || :ignore},
+      {DNSCluster,
+       query: Application.get_env(:example_liveview_ai_ux, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: ExampleLiveviewAiUx.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: ExampleLiveviewAiUx.Finch},

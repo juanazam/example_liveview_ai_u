@@ -1,5 +1,4 @@
 defmodule ExampleLiveviewAiUx.Customers do
-
   import Ecto.Query, warn: false
   alias ExampleLiveviewAiUx.Repo
   alias ExampleLiveviewAiUx.Customers.{Customer, CustomerFilter, CustomerFilters}
